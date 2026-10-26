@@ -19,6 +19,7 @@ hooks/hooks.json             SessionStart: roda o porteiro
 scripts/gatekeeper.sh        porteiro: diagnostica o repo (somente leitura)
 scripts/init-swarm.sh        cria o esqueleto .swarm/ (idempotente)
 scripts/capture-screens.sh   prints das telas (Chrome headless) para .swarm/references/capturas
+scripts/check-mechanical.sh  verificações mecânicas da tarefa (testes intocados, commits, árvore, suíte)
 templates/                   modelos de spec, tarefa, config, designs e .swarm/README
 references/ecc-routing.md    qual agente/skill do ECC usar por stack e por etapa
 ```
@@ -26,6 +27,8 @@ references/ecc-routing.md    qual agente/skill do ECC usar por stack e por etapa
 ## Custo e qualidade
 
 - **Divisão com o ECC:** o ECC é o revisor principal (stack, segurança, falhas silenciosas, acessibilidade, banco, tipos). O swarmbay só cobre o que o ECC não conhece: aderência à spec e aos testes (`spec-reviewer`), fidelidade ao Claude Design (`layout-reviewer`), viés dos testes (`test-auditor`), spec, design, mapa e a implementação guiada por testes.
+- **Rodadas de revisão enxutas:** a rodada 1 é completa; depois das correções só o revisor **dono do achado corrigido** é retomado, o `spec-reviewer` roda uma vez só, e suas verificações mecânicas (testes intocados, commits, árvore limpa, suíte verde) ficam num script, `scripts/check-mechanical.sh`, sem custo de agente. Só achado bloqueante reabre o loop; o resto vira lista de sugestões.
+- **Tetos de loop:** 2 rodadas de correção (revisão ↔ dev), 2 (testes ↔ auditor), 3 tentativas por teste vermelho; parada antes do teto se não houver progresso. Estourar o teto bloqueia a tarefa e leva a decisão ao usuário, nunca aprova sozinho.
 - **Triagem por risco:** o orquestrador escolhe os revisores pelo tamanho e pelo risco do diff, registra o que rodou e o que foi pulado (com o motivo), e a segurança é obrigatória em autenticação, pagamentos, segredos e dependências.
 - **Modelo por agente** (cabeçalho de cada agente): `spec-writer` e `test-auditor` em Opus (decidem o que é certo e o erro é caro); `designer`, `tester`, `developer`, `mapper`, `spec-reviewer` e `layout-reviewer` em Sonnet.
 - **Máximo de 5 skills do ECC por agente**, relatórios curtos e suíte de testes em modo silencioso.

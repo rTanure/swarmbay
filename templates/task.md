@@ -9,6 +9,7 @@ estado: pendente     # pendente | em-andamento | bloqueada | concluida
 depende_de: []
 spec: .swarm/specs/<slug>.md
 areas: []            # caminhos que a tarefa toca
+rodadas: { revisao: 0, auditoria: 0 }   # contadores dos loops (tetos: 2 e 2)
 branch: 
 commits: {}          # spec: <sha>, testes: <sha>, ...
 ---

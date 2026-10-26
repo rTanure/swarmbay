@@ -32,7 +32,7 @@ spec → [design, se frontend] → testes → validar testes → dev → revisõ
 | 2 | Testes | `tester` | testes derivados só da spec (e do layout aprovado, no frontend); devem **falhar** (red) pelo motivo certo | `test(T-NNN): ...` |
 | 3 | Validar testes | `test-auditor` (+ `ecc:pr-test-analyzer` em paralelo) | relatório: testes não enviesados, cobrem todos os critérios | `chore(T-NNN): auditoria dos testes` (+ correções em commit próprio `test(T-NNN): ...`) |
 | 4 | Dev | `developer` | implementação mínima até tudo ficar verde; **não edita testes** | `feat/fix/refactor(T-NNN): ...` |
-| 5 | Revisões | `spec-reviewer` (sempre) + `layout-reviewer` (frontend) **+ os revisores do ECC** (stack, segurança, falhas silenciosas, acessibilidade...), escolhidos pela triagem por risco, todos em paralelo | achados bloqueantes vs. sugestões | `chore(T-NNN): revisões` (+ correções em commit próprio) |
+| 5 | Revisões | `spec-reviewer` (uma vez) + `layout-reviewer` (frontend) **+ os revisores do ECC** (stack, segurança, falhas silenciosas, acessibilidade...), escolhidos pela triagem por risco, todos em paralelo | achados bloqueantes vs. sugestões | `chore(T-NNN): revisões` (+ correções em commit próprio) |
 | 6 | Aprovação | humano | veredito explícito | `chore(T-NNN): aprovada` |
 
 Regras de portão:
@@ -41,7 +41,7 @@ Regras de portão:
 - Etapa 2 → 3: os testes novos falham e a suíte antiga continua verde.
 - Etapa 3 → 4: auditoria aprovada. Reprovou? Volte ao `tester` com os achados e repita a 3.
 - Etapa 4 → 5: suíte completa verde, com a saída real mostrada. Se o `developer` acha que um teste está errado, ele **para e escala**; o orquestrador decide se volta à spec ou aos testes.
-- Etapa 5 → 6: nenhum achado bloqueante aberto. Em frontend, o `layout-reviewer` roda **sempre** e compara a implementação com o layout aprovado no Claude Design; divergência bloqueante volta ao `developer`, e tarefa de frontend sem layout aprovado é reprovada. Corrigidos, as revisões afetadas rodam de novo (re-revisão por `SendMessage` ao mesmo revisor, só sobre o que mudou).
+- Etapa 5 → 6: nenhum achado bloqueante aberto. Em frontend, o `layout-reviewer` roda **sempre** e compara a implementação com o layout aprovado no Claude Design; divergência bloqueante volta ao `developer`, e tarefa de frontend sem layout aprovado é reprovada. Corrigidos, vale o protocolo de "Rodadas de revisão" (re-revisão enxuta, só pelo dono do achado, com teto de rodadas).
 - Etapa 6: apresente resumo, commits e resultado dos testes e **espere** o veredito do usuário. Mudanças pedidas voltam à etapa adequada.
 
 ## Porteiro (sempre a primeira ação)
@@ -186,6 +186,7 @@ estado: pendente | em-andamento | bloqueada | concluida
 depende_de: []
 spec: .swarm/specs/<slug>.md
 areas: [caminhos que a tarefa toca]
+rodadas: { revisao: 0, auditoria: 0 }     # contadores dos loops (veja "Limites de loop")
 branch: ...
 commits: { spec: <sha>, testes: <sha>, ... }
 ---
@@ -228,7 +229,7 @@ Cada lente tem um dono, sem sobreposição:
 
 | Lente | Quem | Quando |
 |---|---|---|
-| Aderência à spec, testes intocados, escopo, processo | `spec-reviewer` (swarmbay) | sempre |
+| Aderência à spec, testes intocados, escopo, processo | `spec-reviewer` (swarmbay) | **uma única vez** (rodada 1); depois, só o script mecânico (veja "Rodadas de revisão") |
 | Fidelidade ao Claude Design, design system, perfil mobile | `layout-reviewer` (swarmbay) | tarefa de frontend |
 | Qualidade e idiomas da stack | revisor ECC da stack (seção 1 do roteamento) | sempre que há código |
 | Segurança | `ecc:security-reviewer` | veja a triagem |
@@ -248,6 +249,41 @@ O swarmbay **não** tem revisor de segurança nem de código genérico: isso é 
 - Registre na tarefa: "Revisões: rodaram <lista>; puladas <lista> (motivo)". Mostre ao usuário, que pode pedir um revisor pulado.
 - Na dúvida entre rodar e pular, rode.
 
+## Rodadas de revisão (onde mais se gasta token)
+
+As revisões são o maior custo do fluxo, e as rodadas tardias costumam achar itens cada vez menores. Por isso:
+
+1. **Rodada 1: triagem completa**, todos em paralelo (`spec-reviewer` + revisor da stack + os gatilhos). É aqui que se acha o que importa: bloqueantes e importantes.
+2. **Correção.** O `developer` (via `SendMessage`) corrige os **bloqueantes e os importantes**. As **sugestões** vão para uma lista "Sugestões" no arquivo da tarefa, para o usuário decidir; elas **não** geram rodada.
+3. **Verificação mecânica, no lugar do `spec-reviewer`.** A cada rodada depois da correção, rode o script (sem custo de agente):
+
+   ```
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-mechanical.sh" --task <arquivo da tarefa> \
+     --tests-sha <sha da etapa de testes> --base <sha anterior à tarefa> --suite "<comando da suíte do mapa>"
+   ```
+
+   Ele confere: cabeçalho e "Próximo passo" da tarefa, testes intocados desde a etapa de testes, prefixo `tipo(T-NNN):` em todos os commits, árvore limpa e suíte completa verde (mostra só o resumo e as falhas; avisa de testes pulados). Qualquer FALHA volta ao `developer` ou ao orquestrador, conforme o caso. O `spec-reviewer` **só é relançado** se a correção alterou testes, critérios de aceite ou o escopo da tarefa.
+4. **Re-revisão enxuta.** Retome (`SendMessage`) **apenas os revisores donos dos achados corrigidos**, e só sobre os arquivos que mudaram. Quem não tem achado aberto não roda. Se a correção criou superfície de risco nova (por exemplo, passou a aceitar entrada de rede ou a tocar dependências), acrescente a lente correspondente, e só ela.
+5. **Parada.** Depois da primeira re-revisão **sem bloqueantes**, a etapa de revisões termina. Só um **novo achado bloqueante** reabre o loop; achados importantes ou sugestões novos vão para a lista de sugestões.
+6. **Teto e parada por falta de progresso: veja "Limites de loop".**
+
+**Teste de comportamento real, cedo.** Antes de pagar revisores para inferir como uma ferramenta externa se comporta (flags de CLI, Docker, shell, rede), verifique na prática, com uma sonda ou teste de integração, e traga o resultado como evidência. O `tester` já inclui esses testes (veja o agente).
+
+## Limites de loop
+
+| Loop | Limite | Contagem |
+|---|---|---|
+| Revisões ↔ dev | **2 rodadas de correção** (revisar, corrigir, re-revisar, corrigir, re-revisar final) | `rodadas.revisao` |
+| Testes ↔ `test-auditor` | **2 rodadas** | `rodadas.auditoria` |
+| Dev contra teste vermelho | **3 tentativas por falha** | no Registro da tarefa |
+| Spec e design com o usuário | sem teto (quem decide é ele); só registre | n/a |
+
+Atualize `rodadas:` no arquivo da tarefa a cada rodada, para uma retomada em sessão nova não zerar a contagem.
+
+**Parada antes do teto, por falta de progresso:** o mesmo achado reaparece; o número de bloqueantes não diminui entre rodadas; ou a correção introduz um bloqueante novo.
+
+**Estourar o teto nunca é aprovação automática.** Marque a tarefa como `bloqueada` e apresente ao usuário um resumo curto: o que foi tentado, o que resta, o motivo provável (spec ambígua, teste frágil, desacordo entre revisores) e as opções (aceitar o risco registrando o achado, mudar a spec, tentar com um modelo mais forte, resolver à mão). Quem decide é ele.
+
 ## Reuso de agentes (evitar cold start)
 
 Cada agente novo relê o mapa, a spec e carrega skills do zero. Para evitar isso, **retome o agente que já tem o contexto** com a ferramenta `SendMessage` (ela é adiada: carregue com `ToolSearch` `select:SendMessage`; `ListAgents` mostra os agentes que você pode retomar).
@@ -258,7 +294,7 @@ Cada agente novo relê o mapa, a spec e carrega skills do zero. Para evitar isso
   - `developer` depois de achados das revisões ou teste falhando;
   - `designer` depois de pedido de mudança no layout;
   - `spec-writer` depois das respostas do usuário;
-  - cada revisor, na re-revisão depois das correções.
+  - o revisor **dono de um achado corrigido**, na re-revisão (os demais revisores e o `spec-reviewer` não são retomados; veja "Rodadas de revisão").
 - A mensagem de continuação é **curta e só o delta**: os achados, o SHA novo, o que pedir. Não repita contexto.
 - **O agente retomado nunca troca de papel.** Quem escreveu não revisa, e o `test-auditor` não é o `tester`. A independência entre escrita e revisão se mantém porque os papéis são agentes distintos.
 - **Entre tarefas:** reutilize `developer`, `tester` e revisores na tarefa seguinte da **mesma área e stack**. Comece um novo ao mudar de área ou stack, ou depois de umas 3 tarefas, para o contexto acumulado não encarecer cada resposta.

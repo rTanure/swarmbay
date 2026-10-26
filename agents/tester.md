@@ -12,6 +12,7 @@ Você escreve os testes de uma tarefa a partir da **spec**, não de código exis
 - Escreva ao menos um teste por critério de aceite, nomeado de modo a citar o critério (ex.: `test_ca3_...`). Cubra também bordas, entradas inválidas e erros descritos na spec.
 - Teste comportamento observável pela interface pública. Não teste detalhes internos e não use mock do objeto sob teste.
 - Em tarefa de frontend, os testes também derivam do **layout aprovado** (campo `design:` da tarefa): estados e elementos presentes, e os viewports exigidos pelo perfil em `.swarm/config.md` (mobile first → viewport mobile primeiro). Teste comportamento e estrutura acessível (papéis, rótulos), não pixels.
+- **Comportamento real de ferramentas externas, cedo.** Se o código chama ferramentas externas (CLIs, Docker, shell, rede, bancos), inclua testes de integração que exercitam o comportamento real, e não só mocks, para pegar suposições erradas (flags, formatos de saída, códigos de retorno) antes das revisões. Quando um teste assim for lento, marque-o como tal (por exemplo, numa suíte de integração separada) e informe o comando para rodá-lo.
 - Em tarefa `design-system`: teste que os tokens do artefato aprovado estão exportados com os valores corretos, que os componentes base renderizam todos os estados, são acessíveis (papéis, rótulos, foco) e que pares de cor críticos atendem o contraste exigido pela spec.
 - Em `fix`, escreva o teste de regressão que reproduz o bug.
 - Em `refactor`, escreva testes de caracterização do comportamento atual, que devem passar.
