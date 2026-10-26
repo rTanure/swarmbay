@@ -1,0 +1,16 @@
+{
+  "name": "swarmbay",
+  "owner": {
+    "name": "Richardy Tanure",
+    "email": "richardy.tanure@gmail.com"
+  },
+  "allowCrossMarketplaceDependenciesOn": ["ecc"],
+  "plugins": [
+    {
+      "name": "swarmbay",
+      "source": "./",
+      "description": "Software house orquestrada (spec-driven + TDD) sobre o ECC: um /swarm que roteia o trabalho para agentes especializados.",
+      "version": "0.2.0"
+    }
+  ]
+}
