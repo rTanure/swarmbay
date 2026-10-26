@@ -1,0 +1,13 @@
+{
+  "name": "swarmbay",
+  "version": "0.2.0",
+  "description": "Software house orquestrada (spec-driven + TDD) sobre o ECC: um /swarm que roteia o trabalho para agentes especializados.",
+  "author": {
+    "name": "Richardy Tanure",
+    "email": "richardy.tanure@gmail.com"
+  },
+  "keywords": ["swarm", "subagents", "orchestration", "parallel", "tdd", "spec-driven"],
+  "dependencies": [
+    { "name": "ecc", "marketplace": "ecc" }
+  ]
+}
