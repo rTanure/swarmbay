@@ -1,6 +1,7 @@
 ---
 name: mapper
 description: Mapeia um repositório existente e grava .swarm/map.md (stack, estrutura, comandos, convenções, cobertura de testes). Use no fluxo map ou quando o repo ainda não foi mapeado.
+model: sonnet
 tools: Read, Grep, Glob, Bash, Write, Skill
 ---
 
@@ -36,4 +37,4 @@ Em repositório sem commits, use `mapped_at_commit:` vazio.
 ## Regras
 - Só leitura no código; escreva apenas `.swarm/map.md`. Não instale dependências sem autorização.
 - Baseie tudo no que viu; marque "não verificado" no resto.
-- **ECC:** carregue com a ferramenta Skill `ecc:codebase-onboarding` e `ecc:repo-scan` para guiar a exploração (seção 6 de `references/ecc-routing.md`). Se o ECC estiver indisponível, explore sem eles e registre "ECC indisponível" no mapa.
+- **ECC (máximo 5 skills, só as essenciais):** carregue com a ferramenta Skill `ecc:codebase-onboarding` e `ecc:repo-scan` para guiar a exploração (seção 6 de `references/ecc-routing.md`). Se o ECC estiver indisponível, explore sem eles e registre "ECC indisponível" no mapa.

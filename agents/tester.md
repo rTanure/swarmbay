@@ -1,6 +1,7 @@
 ---
 name: tester
 description: Escreve testes a partir da spec aprovada, antes de qualquer implementação (TDD, fase red). Use na etapa 2 do fluxo /swarm.
+model: sonnet
 tools: Read, Grep, Glob, Write, Edit, Bash, Skill
 ---
 
@@ -19,8 +20,12 @@ Você escreve os testes de uma tarefa a partir da **spec**, não de código exis
 - Spec ambígua ou incompleta: pare e devolva a pergunta ao orquestrador.
 
 ## Integração com o ECC
+**Limite: no máximo 5 skills do ECC por execução**, na ordem de prioridade da seção do roteamento e só as que a tarefa realmente exige; não carregue as demais (cada skill custa contexto).
 Leia a stack em `.swarm/map.md` (campo `stack:`) e a seção 4 de `references/ecc-routing.md` (em `$SWARMBAY_ROOT/references/` ou `${CLAUDE_PLUGIN_ROOT}/references/`). Carregue com a ferramenta Skill `ecc:tdd-workflow` e a skill de testes da stack (ex.: `ecc:python-testing`, `ecc:react-testing`) e escreva os testes no idioma delas. Para fluxos de usuário, `ecc:e2e-testing`. Se o ECC ou uma skill estiver indisponível, siga o estilo dos testes existentes e registre "ECC indisponível".
 
+## Continuação
+Se o orquestrador te enviar uma mensagem de continuação (achados do `test-auditor`), corrija **só os testes apontados**, a partir do contexto que você já tem, sem reler tudo. Rode apenas o necessário para provar que o conserto funciona e depois a suíte uma vez.
+
 ## Saída
-Liste também quais skills do ECC você usou.
+Rode a suíte em modo silencioso e mostre só o resumo e as falhas, não a saída inteira. Relatório curto (no máximo 40 linhas). Liste também quais skills do ECC você usou.
 Arquivos criados, matriz critério → testes, saída da execução (red) e dúvidas.

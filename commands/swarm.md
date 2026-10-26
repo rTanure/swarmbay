@@ -32,7 +32,7 @@ spec → [design, se frontend] → testes → validar testes → dev → revisõ
 | 2 | Testes | `tester` | testes derivados só da spec (e do layout aprovado, no frontend); devem **falhar** (red) pelo motivo certo | `test(T-NNN): ...` |
 | 3 | Validar testes | `test-auditor` (+ `ecc:pr-test-analyzer` em paralelo) | relatório: testes não enviesados, cobrem todos os critérios | `chore(T-NNN): auditoria dos testes` (+ correções em commit próprio `test(T-NNN): ...`) |
 | 4 | Dev | `developer` | implementação mínima até tudo ficar verde; **não edita testes** | `feat/fix/refactor(T-NNN): ...` |
-| 5 | Revisões | `security-reviewer`, `code-reviewer`, `layout-reviewer` (os aplicáveis) **+ os revisores ECC da stack tocada**, todos em paralelo | achados bloqueantes vs. sugestões | `chore(T-NNN): revisões` (+ correções em commit próprio) |
+| 5 | Revisões | `spec-reviewer` (sempre) + `layout-reviewer` (frontend) **+ os revisores do ECC** (stack, segurança, falhas silenciosas, acessibilidade...), escolhidos pela triagem por risco, todos em paralelo | achados bloqueantes vs. sugestões | `chore(T-NNN): revisões` (+ correções em commit próprio) |
 | 6 | Aprovação | humano | veredito explícito | `chore(T-NNN): aprovada` |
 
 Regras de portão:
@@ -41,7 +41,7 @@ Regras de portão:
 - Etapa 2 → 3: os testes novos falham e a suíte antiga continua verde.
 - Etapa 3 → 4: auditoria aprovada. Reprovou? Volte ao `tester` com os achados e repita a 3.
 - Etapa 4 → 5: suíte completa verde, com a saída real mostrada. Se o `developer` acha que um teste está errado, ele **para e escala**; o orquestrador decide se volta à spec ou aos testes.
-- Etapa 5 → 6: nenhum achado bloqueante aberto. Em frontend, o `layout-reviewer` roda **sempre** e compara a implementação com o layout aprovado no Claude Design; divergência bloqueante volta ao `developer`, e tarefa de frontend sem layout aprovado é reprovada. Corrigidos, as revisões afetadas rodam de novo.
+- Etapa 5 → 6: nenhum achado bloqueante aberto. Em frontend, o `layout-reviewer` roda **sempre** e compara a implementação com o layout aprovado no Claude Design; divergência bloqueante volta ao `developer`, e tarefa de frontend sem layout aprovado é reprovada. Corrigidos, as revisões afetadas rodam de novo (re-revisão por `SendMessage` ao mesmo revisor, só sobre o que mudou).
 - Etapa 6: apresente resumo, commits e resultado dos testes e **espere** o veredito do usuário. Mudanças pedidas voltam à etapa adequada.
 
 ## Porteiro (sempre a primeira ação)
@@ -212,19 +212,65 @@ Subagentes não criam subagentes, então **só você aciona os agentes do ECC** 
 | Design | `ecc:a11y-architect` | tarefa de frontend, depois do `designer` e antes de pedir sua aprovação |
 | Validar testes | `ecc:pr-test-analyzer` | sempre, em paralelo ao `test-auditor`; junte os achados dos dois |
 | Dev (build quebrado) | `ecc:build-error-resolver` ou o resolvedor da stack | só se o `developer` escalar |
-| Revisões | revisor ECC da stack tocada (ex.: `ecc:python-reviewer`, `ecc:react-reviewer`, `ecc:database-reviewer`) + `ecc:security-reviewer` + `ecc:silent-failure-hunter` (+ `ecc:a11y-architect` em UI) | sempre, em paralelo aos revisores do swarmbay |
+| Revisões | o revisor ECC da stack, `ecc:security-reviewer`, `ecc:silent-failure-hunter`, `ecc:a11y-architect`, `ecc:database-reviewer` etc. | conforme a triagem da seção "Revisões: ECC primeiro" abaixo |
 | Limpeza | `ecc:code-simplifier` | opcional, após tudo verde, em commit próprio |
 
 Regras:
 - Escolha os agentes pela tabela da seção 1 do arquivo de roteamento, com base nas tags de `stack:` e nos arquivos do diff, e **diga ao usuário** quais acionou e por quê.
-- Os agentes do swarmbay carregam as *skills* do ECC por conta própria (eles têm a ferramenta Skill e as instruções para isso).
+- Os agentes do swarmbay carregam as *skills* do ECC por conta própria (eles têm a ferramenta Skill e as instruções para isso), com o limite de **5 skills por agente**. Ao delegar, não peça mais que isso.
 - Achados do ECC e do swarmbay entram no mesmo relatório de revisão, sem duplicatas, com a mesma classificação (bloqueante | importante | sugestão). Um achado bloqueante de qualquer revisor trava a etapa.
 - Revisores ECC são só leitura: peça isso explicitamente no prompt. Quem corrige é o `developer`, num commit próprio.
 - Nome de agente ou skill ausente → não invente; siga sem ele e registre "ECC indisponível: <nome>" no relatório.
 
+## Revisões: ECC primeiro, swarmbay só no que o ECC não cobre
+
+Cada lente tem um dono, sem sobreposição:
+
+| Lente | Quem | Quando |
+|---|---|---|
+| Aderência à spec, testes intocados, escopo, processo | `spec-reviewer` (swarmbay) | sempre |
+| Fidelidade ao Claude Design, design system, perfil mobile | `layout-reviewer` (swarmbay) | tarefa de frontend |
+| Qualidade e idiomas da stack | revisor ECC da stack (seção 1 do roteamento) | sempre que há código |
+| Segurança | `ecc:security-reviewer` | veja a triagem |
+| Falhas silenciosas, fallbacks ruins | `ecc:silent-failure-hunter` | código novo com tratamento de erro, async ou I/O |
+| Acessibilidade | `ecc:a11y-architect` | UI |
+| Banco de dados | `ecc:database-reviewer` | SQL, schema, migrações, queries de ORM |
+| Tipos e modelos | `ecc:type-design-analyzer` | diff cria ou altera tipos/modelos de domínio |
+| Desempenho | `ecc:performance-optimizer` | a spec tem requisito de desempenho |
+| Comentários e docs | `ecc:comment-analyzer` | diff majoritariamente de docs/comentários |
+
+O swarmbay **não** tem revisor de segurança nem de código genérico: isso é do ECC.
+
+**Triagem por tamanho e risco.** Classifique o diff antes de lançar os revisores:
+- **Tarefa pequena** (cerca de 30 linhas alteradas ou menos, sem lógica nova: texto, config, renomeação, documentação): só `spec-reviewer` + o revisor ECC da stack.
+- **Demais tarefas**: `spec-reviewer` + revisor da stack + os revisores das linhas acima cujo gatilho aparece no diff.
+- **Segurança é obrigatória, mesmo em tarefa pequena,** se o diff toca autenticação/autorização, pagamentos ou dinheiro, segredos, ou dependências/manifestos. Fora desses casos, rode-o quando houver entrada de usuário, rede, arquivos, banco ou serialização, e pule só se o diff for puramente de apresentação, teste ou documentação.
+- Registre na tarefa: "Revisões: rodaram <lista>; puladas <lista> (motivo)". Mostre ao usuário, que pode pedir um revisor pulado.
+- Na dúvida entre rodar e pular, rode.
+
+## Reuso de agentes (evitar cold start)
+
+Cada agente novo relê o mapa, a spec e carrega skills do zero. Para evitar isso, **retome o agente que já tem o contexto** com a ferramenta `SendMessage` (ela é adiada: carregue com `ToolSearch` `select:SendMessage`; `ListAgents` mostra os agentes que você pode retomar).
+
+- **Guarde o id/nome** devolvido pela ferramenta Agent ao lançar, por (tarefa, papel).
+- **Mesma tarefa, nova rodada → `SendMessage` ao mesmo agente**, nunca um novo:
+  - `tester` depois de reprovação do `test-auditor`;
+  - `developer` depois de achados das revisões ou teste falhando;
+  - `designer` depois de pedido de mudança no layout;
+  - `spec-writer` depois das respostas do usuário;
+  - cada revisor, na re-revisão depois das correções.
+- A mensagem de continuação é **curta e só o delta**: os achados, o SHA novo, o que pedir. Não repita contexto.
+- **O agente retomado nunca troca de papel.** Quem escreveu não revisa, e o `test-auditor` não é o `tester`. A independência entre escrita e revisão se mantém porque os papéis são agentes distintos.
+- **Entre tarefas:** reutilize `developer`, `tester` e revisores na tarefa seguinte da **mesma área e stack**. Comece um novo ao mudar de área ou stack, ou depois de umas 3 tarefas, para o contexto acumulado não encarecer cada resposta.
+- **Fluxos em paralelo não compartilham agente.** Cada fluxo tem os seus; nunca envie mensagem a um agente ocupado em outro fluxo.
+- **Agente não encontrado** (sessão nova, `/clear`, agente encerrado): lance um novo com a tarefa. O estado está em `.swarm/`, então a perda é só de cache.
+- Não grave ids no arquivo da tarefa (são efêmeros); grave só o papel e a data no Registro.
+
 ## Delegação
 
 Cada prompt de agente é autocontido: caminho da tarefa e da spec, trecho relevante do mapa, comandos de teste, restrições e o formato do relatório esperado. Peça relatório curto: o que fez, evidência (saída dos testes) e pendências. Não aceite "feito" sem evidência.
+
+**Custo:** relatórios com limite de tamanho (40 a 60 linhas); suíte de testes em modo silencioso, com só o resumo e as falhas como evidência; no máximo 5 skills do ECC por agente. Cada agente do swarmbay define o próprio `model:` no cabeçalho (Opus para `spec-writer` e `test-auditor`, Sonnet para os demais): não o sobrescreva sem motivo. Ao concluir uma tarefa, se a próxima for de outra área, sugira `/clear` ao usuário (o estado está em `.swarm/` e `/swarm resume` retoma); se as próximas forem da mesma área, mantenha a sessão para reaproveitar os agentes.
 
 ## Relatório final
 

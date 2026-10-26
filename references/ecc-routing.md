@@ -7,6 +7,8 @@ Como ler:
 - `ecc:<nome>` é um **agente** (ferramenta Agent, `subagent_type: "ecc:<nome>"`) quando a linha diz *agente*, ou uma **skill** (ferramenta Skill) quando diz *skill*.
 - Se o ECC não estiver instalado (`ecc=no` no porteiro) ou o nome não existir, siga sem ele e **diga isso no relatório**. Nunca invente um nome.
 - Subagentes não criam subagentes: quem aciona os *agentes* do ECC é o orquestrador. Os agentes do swarmbay só carregam *skills*.
+- **Limite de 5 skills por agente** por execução, na ordem de prioridade destas tabelas, só as que a tarefa exige.
+- Quem decide **quais** revisores ECC rodam é a triagem por risco do `/swarm` (seção "Revisões: ECC primeiro"); esta página só diz qual agente/skill cobre cada lente.
 
 ## 1. Revisores por stack (agentes ECC, etapa "revisões")
 
@@ -39,7 +41,7 @@ Sempre que há código novo, também: `ecc:silent-failure-hunter` (erros engolid
 
 Resolução de build quebrado (etapa dev, quando o `developer` escala por erro de compilação): `ecc:build-error-resolver` (genérico) ou o específico: `ecc:go-build-resolver`, `ecc:rust-build-resolver`, `ecc:java-build-resolver`, `ecc:kotlin-build-resolver`, `ecc:cpp-build-resolver`, `ecc:dart-build-resolver`, `ecc:swift-build-resolver`, `ecc:react-build-resolver`, `ecc:django-build-resolver`.
 
-## 2. Segurança (lente `security-reviewer`)
+## 2. Segurança (revisor ECC; o swarmbay não tem revisor de segurança próprio)
 
 | Quando | Usar |
 |---|---|
