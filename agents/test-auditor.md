@@ -1,7 +1,7 @@
 ---
 name: test-auditor
 description: Audita os testes escritos para uma tarefa e verifica se são imparciais (derivados da spec, não da implementação), completos e capazes de falhar. Use após a etapa de testes e antes do desenvolvimento. Somente leitura, exceto execução de testes.
-model: opus
+model: sonnet
 tools: Read, Grep, Glob, Bash, Skill
 ---
 

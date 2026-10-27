@@ -1,0 +1,5 @@
+{
+  "_nota": "Opcional. Copie para .swarm/prices.json e preencha com os preços atuais em US$ por milhão de tokens. Sem preços, o relatório mostra só tokens e tempo. Chave = id do modelo como aparece no relatório.",
+  "claude-sonnet-5-5": { "input": null, "output": null, "cache_read": null, "cache_write": null },
+  "claude-opus-5-5":   { "input": null, "output": null, "cache_read": null, "cache_write": null }
+}

@@ -163,6 +163,7 @@ Se a primeira palavra for um comando conhecido, use-o; senão infira do texto e 
 | `refactor` | spec = "comportamento inalterado"; antes da etapa 2, caracterize o comportamento atual com testes; se faltar cobertura, essa é a primeira tarefa |
 | `review` | só etapa 5 sobre o diff atual |
 | `status` | lista tarefas, etapa e bloqueios |
+| `report [T-NNN]` | relatório de observabilidade: quem foi chamado, para quê, modelo, tokens, tempo (veja "Observabilidade") |
 | `resume [T-NNN]` | continua uma tarefa a partir do campo "Próximo passo" |
 
 ## Decomposição e paralelismo
@@ -295,7 +296,7 @@ Cada agente novo relê o mapa, a spec e carrega skills do zero. Para evitar isso
   - `designer` depois de pedido de mudança no layout;
   - `spec-writer` depois das respostas do usuário;
   - o revisor **dono de um achado corrigido**, na re-revisão (os demais revisores e o `spec-reviewer` não são retomados; veja "Rodadas de revisão").
-- A mensagem de continuação é **curta e só o delta**: os achados, o SHA novo, o que pedir. Não repita contexto.
+- A mensagem de continuação é **curta e só o delta**: os achados, o SHA novo, o que pedir. Não repita contexto. Ela **começa com o rótulo** `[T-NNN etapa rN]` (veja "Observabilidade").
 - **O agente retomado nunca troca de papel.** Quem escreveu não revisa, e o `test-auditor` não é o `tester`. A independência entre escrita e revisão se mantém porque os papéis são agentes distintos.
 - **Entre tarefas:** reutilize `developer`, `tester` e revisores na tarefa seguinte da **mesma área e stack**. Comece um novo ao mudar de área ou stack, ou depois de umas 3 tarefas, para o contexto acumulado não encarecer cada resposta.
 - **Fluxos em paralelo não compartilham agente.** Cada fluxo tem os seus; nunca envie mensagem a um agente ocupado em outro fluxo.
@@ -306,7 +307,22 @@ Cada agente novo relê o mapa, a spec e carrega skills do zero. Para evitar isso
 
 Cada prompt de agente é autocontido: caminho da tarefa e da spec, trecho relevante do mapa, comandos de teste, restrições e o formato do relatório esperado. Peça relatório curto: o que fez, evidência (saída dos testes) e pendências. Não aceite "feito" sem evidência.
 
+**Rótulo (obrigatório):** a `description` de **todo** `Agent` que você lançar segue o padrão `T-NNN <etapa> r<rodada> <lente>`, com a etapa entre `spec design testes auditoria dev revisoes mapa`, por exemplo `T-002 revisoes r2 security` ou `T-002 testes r1 unit`. Toda mensagem de `SendMessage` começa com `[T-NNN <etapa> rN]`. É isso que permite ao relatório agrupar o gasto por tarefa, etapa e rodada.
+
 **Custo:** relatórios com limite de tamanho (40 a 60 linhas); suíte de testes em modo silencioso, com só o resumo e as falhas como evidência; no máximo 5 skills do ECC por agente. Cada agente do swarmbay define o próprio `model:` no cabeçalho (Opus para `spec-writer` e `test-auditor`, Sonnet para os demais): não o sobrescreva sem motivo. Ao concluir uma tarefa, se a próxima for de outra área, sugira `/clear` ao usuário (o estado está em `.swarm/` e `/swarm resume` retoma); se as próximas forem da mesma área, mantenha a sessão para reaproveitar os agentes.
+
+## Observabilidade
+
+O Claude Code já grava em disco, por sessão, o transcrito do orquestrador e o de cada subagente (modelo, tokens por categoria, horários, tipo do agente e a `description` da delegação). O script lê isso, sem custo de agente e sem imprimir prompts:
+
+```
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/swarm-report.py" [--session latest|all|<id>] [--task T-NNN] [--save]
+```
+
+- `/swarm report` (ou `report T-NNN`): rode o script e mostre o resultado. Depois destaque, em poucas linhas, as 3 chamadas ou etapas mais caras, os **alertas** (agente relançado em vez de retomado, rodadas acima do teto, chamadas sem rótulo) e o que fazer a respeito. O relatório inclui o **orquestrador** (quanto dos tokens é seu), a taxa de cache, o modelo de cada chamada e o tempo de relógio de cada uma (inclui espera por comandos). `--save` grava o JSON em `.swarm/telemetry/` (fora do git).
+- **Custo em dinheiro** só aparece se o usuário mantiver `.swarm/prices.json` (modelo em `.swarm/prices.example.json`); sem ele, o relatório mostra tokens e tempo. Nunca invente preços.
+- **Ao fechar uma tarefa** (depois da aprovação humana), acrescente ao arquivo dela o bloco de custo: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/swarm-report.py" --task T-NNN --md`, e comite junto da etapa de aprovação. Só subagentes entram nesse bloco; o orquestrador aparece no relatório da sessão.
+- Os rótulos da seção "Delegação" são o que liga cada chamada à tarefa; sem eles o gasto cai em "(sem rótulo)".
 
 ## Relatório final
 

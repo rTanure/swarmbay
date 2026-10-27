@@ -24,5 +24,8 @@ commits: {}          # spec: <sha>, testes: <sha>, ...
 
 ## Bloqueios / perguntas ao humano
 
+## Custo
+(preenchido ao concluir a tarefa: `python3 scripts/swarm-report.py --task T-NNN --md`)
+
 ## Próximo passo
 (concreto o bastante para outro agente executar sem contexto)

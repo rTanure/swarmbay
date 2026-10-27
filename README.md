@@ -20,6 +20,7 @@ scripts/gatekeeper.sh        porteiro: diagnostica o repo (somente leitura)
 scripts/init-swarm.sh        cria o esqueleto .swarm/ (idempotente)
 scripts/capture-screens.sh   prints das telas (Chrome headless) para .swarm/references/capturas
 scripts/check-mechanical.sh  verificações mecânicas da tarefa (testes intocados, commits, árvore, suíte)
+scripts/swarm-report.py      relatório de observabilidade (agentes, modelos, tokens, tempo) a partir dos transcritos
 templates/                   modelos de spec, tarefa, config, designs e .swarm/README
 references/ecc-routing.md    qual agente/skill do ECC usar por stack e por etapa
 ```
@@ -34,6 +35,22 @@ references/ecc-routing.md    qual agente/skill do ECC usar por stack e por etapa
 - **Máximo de 5 skills do ECC por agente**, relatórios curtos e suíte de testes em modo silencioso.
 - **Sem cold start:** o orquestrador guarda o id dos agentes e os retoma com `SendMessage` em novas rodadas (correção de testes, achados de revisão, mudança de layout), em vez de lançar um agente novo.
 - **Higiene de sessão:** o estado fica em `.swarm/`; ao trocar de área, `/clear` e `/swarm resume`.
+
+## Observabilidade
+
+`/swarm report [T-NNN]` mostra quem foi chamado, para quê, em qual modelo, quantos tokens gastou e quanto durou, **incluindo o orquestrador**. Ele lê os transcritos que o Claude Code já grava em disco (`~/.claude/projects/<projeto>/<sessão>` e `subagents/`), sem hooks e sem custo de agente, e não imprime prompts nem respostas.
+
+```
+python3 scripts/swarm-report.py                  # última sessão do projeto atual
+python3 scripts/swarm-report.py --task T-002     # só uma tarefa
+python3 scripts/swarm-report.py --session all --save
+```
+
+- **Convenção de rótulo:** o orquestrador descreve cada delegação como `T-NNN <etapa> r<rodada> <lente>` (ex.: `T-002 revisoes r2 security`) e começa cada `SendMessage` com `[T-NNN etapa rN]`. É o que agrupa o gasto por tarefa, etapa e rodada.
+- **Relatório:** totais (orquestrador × subagentes, taxa de cache), por tarefa e etapa, por agente (lançamentos × retomadas, modelo), chamadas mais caras e **alertas**: agente relançado em vez de retomado (cold start), rodadas acima do teto e chamadas sem rótulo.
+- **Custo em dinheiro:** opcional. Copie `.swarm/prices.example.json` para `.swarm/prices.json` e preencha os preços; sem isso o relatório mostra tokens e tempo.
+- **Por tarefa:** ao concluir, o bloco `## Custo` (só subagentes) é acrescentado ao arquivo da tarefa; a telemetria detalhada fica em `.swarm/telemetry/`, fora do git.
+- Requer `python3` (só biblioteca padrão). O tempo é de relógio, inclui espera por comandos.
 
 ## Design de frontend
 

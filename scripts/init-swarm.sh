@@ -33,6 +33,9 @@ put "$plugin_root/templates/spec.md" .swarm/templates/spec.md
 put "$plugin_root/templates/task.md" .swarm/templates/task.md
 put "$plugin_root/templates/swarm-readme.md" .swarm/README.md
 put "$plugin_root/templates/config.md" .swarm/config.md
+put "$plugin_root/templates/prices.example.json" .swarm/prices.example.json
+mkd .swarm/telemetry
+[ -e .swarm/.gitignore ] || { printf 'telemetry/\nprices.json\n' > .swarm/.gitignore; created+=(".swarm/.gitignore"); }
 put "$plugin_root/templates/designs.md" .swarm/designs.md
 
 for d in specs tasks map; do

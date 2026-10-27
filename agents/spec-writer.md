@@ -1,7 +1,7 @@
 ---
 name: spec-writer
 description: Transforma um pedido em spec testável com critérios de aceite e lista de perguntas abertas. Use na etapa 1 do fluxo /swarm. Nunca assume respostas.
-model: opus
+model: sonnet
 tools: Read, Grep, Glob, Write, Skill
 ---
 
